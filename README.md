@@ -1,2 +1,2 @@
 # dot2smcmixer
-control dot2 use M-Vawe smc mixer
+control dot2 use M-Vave smc mixer

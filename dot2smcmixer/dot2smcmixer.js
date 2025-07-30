@@ -1,4 +1,4 @@
-//dot2SMC-Mixer v 1.0 by ArtGateOne
+//dot2SMC-Mixer v 1.1 by ArtGateOne
 
 var easymidi = require("easymidi");
 var W3CWebSocket = require("websocket").w3cwebsocket;
@@ -10,10 +10,10 @@ var midi_out = "SMC-Mixer"; //set correct midi out device name
 var page_switch = 0; //Change pages 1-5 : 1 = ON, 0 = OFF
 var page_switch_pc = 1; //Page switch on dot2  1 = ON, 0 = OFF (work if page_switch is on)
 var wing = 0; //Select wing: core = 0, f-wing 1 or 2
-var fader7 = "1.1"; //Core fader L SpecialMaster nr
-var fader8 = "1.2"; //Core fader R SpecialMaster nr
 
 //-----------------------------------------------------------------------------
+var fader7 = "1.1"; //Core fader L SpecialMaster nr
+var fader8 = "1.2"; //Core fader R SpecialMaster nr
 var fader7_val = 15872; //default fader position for core L master fader
 var fader8_val = 128; //default fader position for core R master fader
 
@@ -21,15 +21,34 @@ var fader8_val = 128; //default fader position for core R master fader
 //fader8 = "2.1";
 //fader8_val = 15872;
 
-//--------------------------------------------------------------------------------
+//custom commands for buttons 1-11
+var button_1_on = "";
+var button_1_off = "";
+var button_2_on = "";
+var button_2_off = "";
+var button_3_on = "";
+var button_3_off = "";
+var button_4_on = "";
+var button_4_off = "";
+var button_5_on = "";
+var button_5_off = "";
+var button_6_on = "";
+var button_6_off = "";
+var button_7_on = "";
+var button_7_off = "";
+var button_8_on = "";
+var button_8_off = "";
+var button_9_on = "";
+var button_9_off = "";
+var button_10_on = "";
+var button_10_off = "";
+var button_11_on = "clear";
+var button_11_off = "";
 
-// Dla faderów (kanały Mackie Control 0–7)
+//-------------------------------------------------------------------------------- END config
+
 const prevFaderValues = new Array(8).fill(null);
-
-// Dla stanów NoteOn (note + channel jako klucz)
 const prevNoteStates = {};
-
-//----------------------------------------------------------------------------------------------
 
 var speedmaster1 = 60;
 var speedmaster2 = 60;
@@ -50,6 +69,29 @@ var matrix = [
 var exec = JSON.parse(
   '{"index":[[5,4,3,2,1,0,0,0],[13,12,11,10,9,8,7,6],[21,20,19,18,17,16,15,14]]}'
 );
+
+let button_on = [];
+let button_off = [];
+
+let mapping = {
+  94: 1,
+  93: 2,
+  95: 3,
+  91: 4,
+  92: 5,
+  46: 6,
+  47: 7,
+  96: 8,
+  97: 9,
+  98: 10,
+  99: 11,
+};
+
+for (let key in mapping) {
+  let num = mapping[key];
+  button_on[key] = eval("button_" + num + "_on");
+  button_off[key] = eval("button_" + num + "_off");
+}
 
 function interval() {
   if (sessionnr > 0) {
@@ -108,7 +150,7 @@ for (var i = 0; i < 128; i++) {
   output.send("noteon", { note: i, velocity: 0, channel: 0 });
 }
 
-if (page_switch == 1){
+if (page_switch == 1) {
   output.send("noteon", { note: 94, velocity: 127, channel: 0 });
 }
 
@@ -253,7 +295,6 @@ input.on("cc", function (msg) {
   }
 
   if (msg.controller == 23) {
-
     if (msg.value < 60) {
       grandmaster = grandmaster + msg.value;
     } else {
@@ -522,8 +563,27 @@ input.on("noteon", function (msg) {
         );
       }
     } else {
-      output.send("noteon", { note: msg.note, velocity: msg.velocity, channel: 0 });
+      output.send("noteon", {
+        note: msg.note,
+        velocity: msg.velocity,
+        channel: 0,
+      });
+      sendCommand(msg.note, msg.velocity);
     }
+  } else if (
+    msg.note == 46 ||
+    msg.note == 47 ||
+    msg.note == 96 ||
+    msg.note == 97 ||
+    msg.note == 98 ||
+    msg.note == 99
+  ) {
+    output.send("noteon", {
+      note: msg.note,
+      velocity: msg.velocity,
+      channel: 0,
+    });
+    sendCommand(msg.note, msg.velocity);
   }
 });
 
@@ -554,7 +614,7 @@ client.onclose = function () {
     output.send("noteon", { note: i, velocity: 0, channel: 0 });
     sleep(10, function () {});
   }
-/*
+  /*
   for (i = 0; i <= 127; i++) {
     output.send("cc", { controller: i, value: 55, channel: 0 });
     sleep(10, function () {});
@@ -630,9 +690,7 @@ client.onmessage = function (e) {
     }
 
     if (obj.responseType == "playbacks") {
-
       if (obj.itemGroups[0].items[0][0].iExec === 0) {
-
         sendPitchIfChanged(6, fader7_val);
         sendPitchIfChanged(7, fader8_val);
 
@@ -687,6 +745,26 @@ function sendNoteIfChanged(note, velocity, channel = 0) {
 
 function mapRange(value, inMin, inMax, outMin, outMax) {
   return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+}
+
+function sendCommand(note, velocity) {
+  if (velocity == 127) {
+    client.send(
+      '{"command":"' +
+        button_on[note] +
+        '","session":' +
+        sessionnr +
+        ',"requestType":"command","maxRequests":0}'
+    );
+  } else if (velocity == 0) {
+    client.send(
+      '{"command":"' +
+        button_off[note] +
+        '","session":' +
+        sessionnr +
+        ',"requestType":"command","maxRequests":0}'
+    );
+  }
 }
 
 //sleep function
